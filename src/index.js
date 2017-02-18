@@ -4,8 +4,10 @@ var Router = require("koa-router");
 var _ = require("lodash");
 var Ajv = require("ajv");
 
+/*
 var _controller = {};
 var _middleware = {};
+*/
 var _swagger=null;
 
 var r = new Router();
@@ -18,7 +20,7 @@ var lib = {
 			}
 		})
 	},
-	initRouter:function(){
+	initRouter:function(_controller,_middleware){
 		r.prefix(_swagger.basePath);
 		
 		_.toPairs(_swagger.paths).forEach(([path,methods])=>{
@@ -28,32 +30,42 @@ var lib = {
 				if(methods["x-router"]==undefined){
 					throw "x-router not found";
 				}
-				processList = processList.concat(lib.bindMiddleware(methods["x-router"]["middleware"]));
+				processList = processList.concat(lib.bindMiddleware(methods["x-router"]["middleware"],_middleware));
 				_.toPairs(methods).forEach(([method,detail])=>{
 					if(["get","post","patch","delete","put"].indexOf(method)=="-1"){
 						return;
 					}
 				
-					var controller = _controller[methods["x-router"]["controller"]][methods["x-router"]["action"]][method];
+					var controller = _controller[methods["x-router"]["controller"]];
 					if(controller==undefined){
 						throw "controller not found";
+					}
+					var action = controller[methods["x-router"]["action"]];
+					
+					if(action==undefined){
+						throw "action not found";
+					}
+					
+					if(action[method]==undefined){
+						throw "action method not found";
 					}
 					
 					var subProcessList = [lib.bindParams(detail),lib.validateParams(detail)];
 					
 					if(detail["x-router"]!=undefined&&detail["x-router"]["middleware"]!=undefined){
-						subProcessList = lib.bindMiddleware(detail["x-router"]["middleware"]);
+						subProcessList = lib.bindMiddleware(detail["x-router"]["middleware"],_middleware);
 					}
-					subProcessList.push(controller);
-					console.log("middle",processList.concat(subProcessList));
+					subProcessList.push(action[method]);
+					console.log(processList.concat(subProcessList))
 					r[method](...processList.concat(subProcessList));
+					console.log(path,"inited");
 				})
 			}catch(e){
 				console.log(path,e);
 			}
 		});	
 	},
-	bindMiddleware:function(middlewareList){
+	bindMiddleware:function(middlewareList,_middleware){
 		var result = []
 		if(middlewareList==undefined){
 			return result;
@@ -197,7 +209,7 @@ module.exports = ({
 	
 	lib.parserAPI(path).then((api)=>{
 		_swagger = api;
-		lib.initRouter();
+		lib.initRouter(controller,middleware);
 		console.log("parser swagger api success");
 	}).catch((err)=>{
 		console.log("parser swagger api error",err);
