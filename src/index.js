@@ -123,7 +123,7 @@ var lib = {
 						break;
 					case "body":
 						if(ctx.is("json")){
-							data[item.name] = ctx.request.body[item.name];
+							data[item.name] = ctx.request.body;
 						}
 						break;
 					case "query":
