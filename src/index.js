@@ -169,7 +169,9 @@ var lib = {
 						break;
 					case "formData":
 						if(ctx.is("urlencoded")){
-							data[item.name] = ctx.request.body[item.name];
+							schema.properties[item.name] ={
+								type:item.type
+							}
 						}else if(ctx.is("multipart")){
 							if(item.type=="file"){
 								schema.properties[item.name]={
