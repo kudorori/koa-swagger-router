@@ -26,11 +26,11 @@ var lib = {
 		_.toPairs(_swagger.paths).forEach(([path,methods])=>{
 			try{
 				var toPath = path.replace(/(\{(\w*)\})/g, ":$2");
-				var processList = [toPath];
 				if(methods["x-router"]==undefined){
 					throw "x-router not found";
 				}
-				processList = processList.concat(lib.bindMiddleware(methods["x-router"]["middleware"],_middleware));
+				var masterMiddleware = []
+				masterMiddleware = lib.bindMiddleware(methods["x-router"]["middleware"],_middleware);
 				_.toPairs(methods).forEach(([method,detail])=>{
 					if(["get","post","patch","delete","put"].indexOf(method)=="-1"){
 						return;
@@ -50,14 +50,20 @@ var lib = {
 						throw "action method not found";
 					}
 					
-					var subProcessList = [lib.bindParams(detail),lib.validateParams(detail)];
+					var validateMiddleware = [lib.bindParams(detail),lib.validateParams(detail)];
+					var subMiddleware = [];
 					
 					if(detail["x-router"]!=undefined&&detail["x-router"]["middleware"]!=undefined){
-						subProcessList = lib.bindMiddleware(detail["x-router"]["middleware"],_middleware);
+						subMiddleware = lib.bindMiddleware(detail["x-router"]["middleware"],_middleware);
 					}
-					subProcessList.push(action[method]);
-					console.log(processList.concat(subProcessList))
-					r[method](...processList.concat(subProcessList));
+					
+					//concat所有要執行的middleware
+					var middlewares = [toPath]
+										.concat(validateMiddleware)
+										.concat(masterMiddleware)
+										.concat(subMiddleware)
+										.concat([action[method]]);
+					r[method](...middlewares);
 					console.log(path,"inited");
 				})
 			}catch(e){
@@ -117,7 +123,7 @@ var lib = {
 						break;
 					case "body":
 						if(ctx.is("json")){
-							data[item.name] = ctx.request.body[item.name];
+							data[item.name] = ctx.request.body;
 						}
 						break;
 					case "query":
