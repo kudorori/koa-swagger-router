@@ -3,14 +3,13 @@ var koa = require("koa");
 var Router = require("koa-router");
 var _ = require("lodash");
 var Ajv = require("ajv");
-
+var _router ={};
 /*
 var _controller = {};
 var _middleware = {};
 */
 var _swagger=null;
 
-var r = new Router();
 
 var lib = {
 	parserAPI:function(path){
@@ -20,8 +19,8 @@ var lib = {
 			}
 		})
 	},
-	initRouter:function(_controller,_middleware){
-		r.prefix(_swagger.basePath);
+	initRouter:function(router,_controller,_middleware,_path){
+		router.prefix(_swagger.basePath);
 		
 		_.toPairs(_swagger.paths).forEach(([path,methods])=>{
 			try{
@@ -63,8 +62,7 @@ var lib = {
 										.concat(masterMiddleware)
 										.concat(subMiddleware)
 										.concat([action[method]]);
-					r[method](...middlewares);
-					console.log(path,"inited");
+					router[method](...middlewares);
 				})
 			}catch(e){
 				console.log(path,e);
@@ -104,6 +102,7 @@ var lib = {
 	}){
 		return (ctx,next)=>{
 			if(parameters.length==0){
+				ctx.swaggerParams={};
 				return next();
 			}
 			var schema = {
@@ -139,6 +138,16 @@ var lib = {
 								data[item.name] = ctx.request.body.fields[item.name];
 							}
 						}
+						
+						switch(item.type){
+							case "boolean":
+								data[item.name] = (data[item.name]=='true');
+								break;
+							case "number":
+								data[item.name] = Number(data[item.name]);
+								break;
+						}
+						
 						break;
 				}
 			});
@@ -215,16 +224,19 @@ module.exports = ({
 	_controller = controller;
 	_middleware = middleware;
 	
+	var router =  new Router();
 	lib.parserAPI(path).then((api)=>{
 		_swagger = api;
-		lib.initRouter(controller,middleware);
+		lib.initRouter(router,controller,middleware,path);
 		console.log("parser swagger api success");
+	}).then((router)=>{
+		_router[path]=router;
 	}).catch((err)=>{
 		console.log("parser swagger api error",err);
 		throw "parse swagger api error";
 	});
 
-	return r.routes();
+	return router.routes();
 }
 
 
