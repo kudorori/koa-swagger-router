@@ -138,19 +138,20 @@ var lib = {
 								data[item.name] = ctx.request.body.fields[item.name];
 							}
 						}
-						
-						switch(item.type){
-							case "boolean":
-								data[item.name] = (data[item.name]=='true');
-								break;
-							case "number":
-								data[item.name] = Number(data[item.name]);
-								break;
+						break;
+				}
+				switch(item.type){
+					case "boolean":
+						if(data[item.name]!=undefined){
+							data[item.name] = (data[item.name]=='true');
 						}
-						
+						break;
+					case "number":
+						data[item.name] = Number(data[item.name]);
 						break;
 				}
 			});
+			
 			ctx.swaggerParams = data;
 			//next == validateParams
 			return next();
